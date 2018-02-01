@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package demo.hello;
+option go_package = "hello";
+
+// HelloService comment
+service HelloService {
+    // Hello method comment
+    rpc Hello (HelloRequest) returns (HelloResponse); // abc
+}
+
+// TestService comment
+service TestService {
+    rpc Hello1 (HelloRequest) returns (HelloResponse); // Hello1 method comment
+    rpc Hello2 (HelloRequest) returns (HelloResponse);
+}
+
+/* Block comment attached to
+ * DemoService. */
+service DemoService {
+}
+
+message HelloRequest {
+    string subject = 1; // subject field comment
+    enum HelloType {
+        NOTSET = 0;
+        HOT = 1;
+    }
+    HelloType type = 2;
+}
+
+// HelloResponse comment
+message HelloResponse {
+    string text = 1;
+}
