@@ -7,13 +7,13 @@
 Use `go get` to install the code generator:
 
 ```bash
-go install github.com/cuigh/protoc-gen-auxo
+go get github.com/cuigh/protoc-gen-auxo
 ```
 
 You will also need:
 
-* [protoc](https://github.com/golang/protobuf), the protobuf compiler. You need version 3+.
-* [github.com/golang/protobuf/protoc-gen-go](https://github.com/golang/protobuf/), the Go protobuf generator plugin. Get this with `go get`.
+* [protoc](https://github.com/google/protobuf), the protobuf compiler. You need version 3+.
+* [protoc-gen-go](https://github.com/golang/protobuf/), the Go protobuf generator plugin. Get this with `go get github.com/golang/protobuf/protoc-gen-go`.
 
 ## Usage
 
