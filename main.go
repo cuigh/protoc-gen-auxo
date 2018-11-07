@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -21,11 +20,8 @@ func main() {
 	app.Desc = `Code generator for auxo RPC
 
 Usage: protoc --go_out=. --auxo_out=. hello.proto`
-	app.Action = func(c *app.Context) {
-		if err := generate(); err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
+	app.Action = func(c *app.Context) error {
+		return generate()
 	}
 	app.Flags.Register(flag.Help | flag.Version)
 	app.Start()

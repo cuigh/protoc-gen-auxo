@@ -1,0 +1,4 @@
+github.com/cuigh/auxo v0.0.0-20180918072922-35f08384a278 h1:kQkV7iVka1cun4Brhmv7FiXeBkSJMIYwwZn80JLHFyQ=
+github.com/cuigh/auxo v0.0.0-20180918072922-35f08384a278/go.mod h1:d1PEypAL3Oqwb3OILA0KaBNmhz7gSXdzRABgefRbHr8=
+github.com/golang/protobuf v1.2.0 h1:P3YflyNX/ehuJFLhxviNdFxQPkGK5cDcApsge1SqnvM=
+github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
