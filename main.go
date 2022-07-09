@@ -8,15 +8,15 @@ import (
 	"github.com/cuigh/auxo/app/flag"
 	"github.com/cuigh/auxo/config"
 	"github.com/cuigh/auxo/errors"
-	"github.com/golang/protobuf/proto"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 func main() {
 	config.SetDefaultValue("banner", false)
 
 	app.Name = "protoc-gen-auxo"
-	app.Version = "0.1"
+	app.Version = "0.2"
 	app.Desc = `Code generator for auxo RPC
 
 Usage: protoc --go_out=. --auxo_out=. hello.proto`
@@ -33,7 +33,7 @@ func generate() error {
 		return errors.Wrap(err, "failed to read input")
 	}
 
-	req := &plugin.CodeGeneratorRequest{}
+	req := &pluginpb.CodeGeneratorRequest{}
 	err = proto.Unmarshal(data, req)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse input proto")

@@ -3,16 +3,17 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"strings"
-	"text/template"
-
 	"github.com/cuigh/auxo/app"
 	"github.com/cuigh/auxo/data"
 	"github.com/cuigh/auxo/ext/texts"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/pluginpb"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"text/template"
 )
 
 const (
@@ -37,13 +38,13 @@ const (
 )
 
 type Generator struct {
-	Request  *plugin.CodeGeneratorRequest
-	Response *plugin.CodeGeneratorResponse
+	Request  *pluginpb.CodeGeneratorRequest
+	Response *pluginpb.CodeGeneratorResponse
 	types    map[string]*TypeInfo
 	b        *Builder
 }
 
-func NewGenerator(req *plugin.CodeGeneratorRequest) *Generator {
+func NewGenerator(req *pluginpb.CodeGeneratorRequest) *Generator {
 	g := &Generator{
 		Request: req,
 		types:   make(map[string]*TypeInfo),
@@ -65,7 +66,7 @@ func (g *Generator) initTypes() {
 	}
 }
 
-func (g *Generator) initMessageTypes(file *descriptor.FileDescriptorProto, t *descriptor.DescriptorProto) {
+func (g *Generator) initMessageTypes(file *descriptorpb.FileDescriptorProto, t *descriptorpb.DescriptorProto) {
 	ti := newTypeInfo(file.GetPackage(), file.GetOptions().GetGoPackage(), t.GetName())
 	g.types[ti.ProtoName()] = ti
 
@@ -79,7 +80,7 @@ func (g *Generator) initMessageTypes(file *descriptor.FileDescriptorProto, t *de
 }
 
 func (g *Generator) Generate() error {
-	g.Response = &plugin.CodeGeneratorResponse{}
+	g.Response = &pluginpb.CodeGeneratorResponse{}
 	for _, file := range g.getProtoFiles() {
 		g.generateHeader(file)
 		g.generateImports(file)
@@ -93,8 +94,12 @@ func (g *Generator) Generate() error {
 		if i := strings.LastIndex(name, "."); i > 0 {
 			name = name[:i]
 		}
-		f := &plugin.CodeGeneratorResponse_File{
-			Name:    proto.String(texts.Rename(name, texts.Lower) + ".auxo.go"),
+		if pkg := file.GetOptions().GetGoPackage(); pkg != "" {
+			_, name = path.Split(name)
+			name = path.Join(pkg, name)
+		}
+		f := &pluginpb.CodeGeneratorResponse_File{
+			Name:    proto.String(name + ".auxo.go"),
 			Content: proto.String(g.b.String()),
 		}
 		g.Response.File = append(g.Response.File, f)
@@ -103,8 +108,8 @@ func (g *Generator) Generate() error {
 	return nil
 }
 
-func (g *Generator) getProtoFiles() []*descriptor.FileDescriptorProto {
-	files := make([]*descriptor.FileDescriptorProto, 0)
+func (g *Generator) getProtoFiles() []*descriptorpb.FileDescriptorProto {
+	files := make([]*descriptorpb.FileDescriptorProto, 0)
 	for _, name := range g.Request.GetFileToGenerate() {
 		for _, file := range g.Request.GetProtoFile() {
 			if file.GetName() == name {
@@ -115,7 +120,7 @@ func (g *Generator) getProtoFiles() []*descriptor.FileDescriptorProto {
 	return files
 }
 
-func (g *Generator) findLocation(file *descriptor.FileDescriptorProto, path []int32) *descriptor.SourceCodeInfo_Location {
+func (g *Generator) findLocation(file *descriptorpb.FileDescriptorProto, path []int32) *descriptorpb.SourceCodeInfo_Location {
 	if file.SourceCodeInfo != nil {
 		for _, loc := range file.SourceCodeInfo.Location {
 			if g.pathEqual(path, loc.Path) {
@@ -139,11 +144,11 @@ func (g *Generator) pathEqual(path1, path2 []int32) bool {
 }
 
 // todo: support generate models
-//func (g *Generator) generateModel(file *descriptor.FileDescriptorProto) *plugin.CodeGeneratorResponse_File {
+//func (g *Generator) generateModel(file *descriptorpb.FileDescriptorProto) *plugin.CodeGeneratorResponse_File {
 //}
 
-func (g *Generator) generateHeader(file *descriptor.FileDescriptorProto) {
-	pkg := file.GetOptions().GetGoPackage()
+func (g *Generator) generateHeader(file *descriptorpb.FileDescriptorProto) {
+	pkg := filepath.Base(file.GetOptions().GetGoPackage())
 	if pkg == "" {
 		pkg = file.GetPackage()
 	}
@@ -154,7 +159,7 @@ func (g *Generator) generateHeader(file *descriptor.FileDescriptorProto) {
 	g.b.Line()
 }
 
-func (g *Generator) generateImports(file *descriptor.FileDescriptorProto) {
+func (g *Generator) generateImports(file *descriptorpb.FileDescriptorProto) {
 	g.b.Line(`import (
 	"context"
 
@@ -163,7 +168,7 @@ func (g *Generator) generateImports(file *descriptor.FileDescriptorProto) {
 	g.b.Line()
 }
 
-func (g *Generator) generateVariables(file *descriptor.FileDescriptorProto) {
+func (g *Generator) generateVariables(file *descriptorpb.FileDescriptorProto) {
 	var server string
 	i := strings.LastIndex(file.GetPackage(), ".")
 	if i > 0 {
@@ -185,7 +190,7 @@ func (g *Generator) generateVariables(file *descriptor.FileDescriptorProto) {
 	g.b.Line(")")
 }
 
-func (g *Generator) generateService(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, index int) {
+func (g *Generator) generateService(file *descriptorpb.FileDescriptorProto, service *descriptorpb.ServiceDescriptorProto, index int) {
 	path := []int32{servicePath, int32(index)}
 	loc := g.findLocation(file, path)
 	g.generateComments(loc, "")
@@ -232,7 +237,7 @@ func (g *Generator) generateService(file *descriptor.FileDescriptorProto, servic
 	}
 }
 
-func (g *Generator) generateComments(loc *descriptor.SourceCodeInfo_Location, prefix string) {
+func (g *Generator) generateComments(loc *descriptorpb.SourceCodeInfo_Location, prefix string) {
 	if loc != nil {
 		if comments := loc.GetLeadingDetachedComments(); len(comments) > 0 {
 			for _, c := range comments {
@@ -244,8 +249,8 @@ func (g *Generator) generateComments(loc *descriptor.SourceCodeInfo_Location, pr
 	}
 }
 
-func (g *Generator) generateMethod(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto,
-	method *descriptor.MethodDescriptorProto) {
+func (g *Generator) generateMethod(file *descriptorpb.FileDescriptorProto, service *descriptorpb.ServiceDescriptorProto,
+	method *descriptorpb.MethodDescriptorProto) {
 	tpl := `func (s *${Type}) ${Method}(ctx context.Context, req *${Request}) (*${Response}, error) {
 	c, err := s.Try()
 	if err != nil {
