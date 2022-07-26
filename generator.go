@@ -6,11 +6,9 @@ import (
 	"github.com/cuigh/auxo/app"
 	"github.com/cuigh/auxo/data"
 	"github.com/cuigh/auxo/ext/texts"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/pluginpb"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -38,24 +36,23 @@ const (
 )
 
 type Generator struct {
-	Request  *pluginpb.CodeGeneratorRequest
-	Response *pluginpb.CodeGeneratorResponse
-	types    map[string]*TypeInfo
-	b        *Builder
+	plugin *protogen.Plugin
+	types  map[string]*TypeInfo
+	b      *Builder
 }
 
-func NewGenerator(req *pluginpb.CodeGeneratorRequest) *Generator {
+func NewGenerator(plugin *protogen.Plugin) *Generator {
 	g := &Generator{
-		Request: req,
-		types:   make(map[string]*TypeInfo),
-		b:       &Builder{},
+		plugin: plugin,
+		types:  make(map[string]*TypeInfo),
+		b:      &Builder{},
 	}
 	g.initTypes()
 	return g
 }
 
 func (g *Generator) initTypes() {
-	for _, file := range g.Request.ProtoFile {
+	for _, file := range g.plugin.Request.ProtoFile {
 		for _, t := range file.GetMessageType() {
 			g.initMessageTypes(file, t)
 		}
@@ -80,38 +77,31 @@ func (g *Generator) initMessageTypes(file *descriptorpb.FileDescriptorProto, t *
 }
 
 func (g *Generator) Generate() error {
-	g.Response = &pluginpb.CodeGeneratorResponse{}
-	for _, file := range g.getProtoFiles() {
-		g.generateHeader(file)
-		g.generateImports(file)
-		g.generateVariables(file)
-		for i, service := range file.GetService() {
-			g.b.Line()
-			g.generateService(file, service, i)
+	for _, file := range g.plugin.Files {
+		if len(file.Services) == 0 {
+			continue
 		}
 
-		name := file.GetName()
-		if i := strings.LastIndex(name, "."); i > 0 {
-			name = name[:i]
-		}
-		if pkg := file.GetOptions().GetGoPackage(); pkg != "" {
-			_, name = path.Split(name)
-			name = path.Join(pkg, name)
-		}
-		f := &pluginpb.CodeGeneratorResponse_File{
-			Name:    proto.String(name + ".auxo.go"),
-			Content: proto.String(g.b.String()),
-		}
-		g.Response.File = append(g.Response.File, f)
 		g.b.Reset()
+		g.generateHeader(file.Proto)
+		g.generateImports(file)
+		g.generateVariables(file.Proto)
+		for i, service := range file.Proto.GetService() {
+			g.b.Line()
+			g.generateService(file.Proto, service, i)
+		}
+
+		filename := file.GeneratedFilenamePrefix + ".auxo.go"
+		f := g.plugin.NewGeneratedFile(filename, file.GoImportPath)
+		_, _ = f.Write(g.b.buf.Bytes())
 	}
 	return nil
 }
 
 func (g *Generator) getProtoFiles() []*descriptorpb.FileDescriptorProto {
 	files := make([]*descriptorpb.FileDescriptorProto, 0)
-	for _, name := range g.Request.GetFileToGenerate() {
-		for _, file := range g.Request.GetProtoFile() {
+	for _, name := range g.plugin.Request.GetFileToGenerate() {
+		for _, file := range g.plugin.Request.GetProtoFile() {
 			if file.GetName() == name {
 				files = append(files, file)
 			}
@@ -159,7 +149,7 @@ func (g *Generator) generateHeader(file *descriptorpb.FileDescriptorProto) {
 	g.b.Line()
 }
 
-func (g *Generator) generateImports(file *descriptorpb.FileDescriptorProto) {
+func (g *Generator) generateImports(file *protogen.File) {
 	g.b.Line(`import (
 	"context"
 
@@ -169,10 +159,9 @@ func (g *Generator) generateImports(file *descriptorpb.FileDescriptorProto) {
 }
 
 func (g *Generator) generateVariables(file *descriptorpb.FileDescriptorProto) {
-	var server string
-	i := strings.LastIndex(file.GetPackage(), ".")
-	if i > 0 {
-		server = file.GetPackage()[:i]
+	server := file.GetPackage()
+	if i := strings.LastIndex(server, "."); i > 0 {
+		server = server[:i]
 	}
 
 	max := 0

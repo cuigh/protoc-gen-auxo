@@ -20,7 +20,7 @@ You will also need:
 Just like **grpc**:
 
 ```bash
-protoc --go_out=. --auxo_out=. hello.proto
+protoc --go_out=. --auxo_out=. --go_opt=paths=source_relative --auxo_opt=paths=source_relative hello.proto
 ```
 
 Service interfaces and client proxies were generated into a separate file `[name].auxo.go`:

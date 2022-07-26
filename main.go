@@ -1,58 +1,29 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-
 	"github.com/cuigh/auxo/app"
 	"github.com/cuigh/auxo/app/flag"
 	"github.com/cuigh/auxo/config"
-	"github.com/cuigh/auxo/errors"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/pluginpb"
+	"google.golang.org/protobuf/compiler/protogen"
 )
 
 func main() {
 	config.SetDefaultValue("banner", false)
 
 	app.Name = "protoc-gen-auxo"
-	app.Version = "0.2"
+	app.Version = "0.21"
 	app.Desc = `Code generator for auxo RPC
 
-Usage: protoc --go_out=. --auxo_out=. hello.proto`
-	app.Action = func(c *app.Context) error {
-		return generate()
-	}
+Usage: protoc --go_out=. --auxo_out=. --go_opt=paths=source_relative --auxo_opt=paths=source_relative hello.proto`
+	app.Action = generate
 	app.Flags.Register(flag.Help | flag.Version)
 	app.Start()
 }
 
-func generate() error {
-	data, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		return errors.Wrap(err, "failed to read input")
-	}
-
-	req := &pluginpb.CodeGeneratorRequest{}
-	err = proto.Unmarshal(data, req)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse input proto")
-	}
-
-	g := NewGenerator(req)
-	err = g.Generate()
-	if err != nil {
-		return errors.Wrap(err, "failed to generate output")
-	}
-
-	data, err = proto.Marshal(g.Response)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal output proto")
-	}
-
-	_, err = os.Stdout.Write(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to write output")
-	}
+func generate(_ *app.Context) error {
+	protogen.Options{}.Run(func(plugin *protogen.Plugin) error {
+		g := NewGenerator(plugin)
+		return g.Generate()
+	})
 	return nil
 }
