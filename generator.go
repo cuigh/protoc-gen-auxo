@@ -163,6 +163,7 @@ func (g *Generator) generateVariables(file *descriptorpb.FileDescriptorProto) {
 	if i := strings.LastIndex(server, "."); i > 0 {
 		server = server[:i]
 	}
+	server = strings.ReplaceAll(server, "_", "-")
 
 	max := 0
 	vars := data.Options{}
