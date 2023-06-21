@@ -4,10 +4,10 @@
 
 ## Install
 
-Use `go get` to install the code generator:
+Use `go install` to install the code generator:
 
 ```bash
-go get github.com/cuigh/protoc-gen-auxo
+go install github.com/cuigh/protoc-gen-auxo@latest
 ```
 
 You will also need:
